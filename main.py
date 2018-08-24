@@ -1,6 +1,4 @@
 """
-21 AUG 2018
-
 Graphical Hangman v1:
 
 A simple game of hangman, in a pygame instance. It has multiple difficulty levels, a small but easily expanded
