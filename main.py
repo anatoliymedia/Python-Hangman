@@ -1,640 +1,641 @@
 """
-19 AUG 2018
+21 AUG 2018
 Sam Gibson
 
-Graphical Hangman with PyGame - Rough Draft
+Graphical Hangman v1:
 
-Missing Features: High Score List and Options Menu
+A simple game of hangman, in a pygame instance. It has multiple difficulty levels, a small but easily expanded
+vocabulary, improved animations and sound over v0, and a fully clickable menu interface (where v0 was key-strokes only).
 
-All other features complete. Hangman game works, animations work, sound works, can play games back to back to back
-to back without issue. Can skip ahead of the sound and animations and the game will play along nicely, despite
-my sloppy coding.
+There is no high score system yet, but there is a win streak counter. It will keep track of your win streak
+until you lose, at which point it is reset.
 
-Using the vocab.py file it is relatively easy to add new words to the existing categories or add entirely new
-categories. One area I want to polish is in creating a streamlined system for adding words.
+Graphics and Sound are still very basic and there's definitely a better way to do the background sprite but I went
+with what I was comfortable with for this version.
+
+I re-wrote the game loop and organized the classes differently than in v0, and while they are still probably not
+ideal they are a lot better than before. I'm still working on modular organization but this one doesn't have as much
+spaghetti as I feared it would.
+
+An area in need of improvement is the way I handled the background sprite. I could not get pygame.transform() to do
+what I wanted with scaling, so I had to re-size the base sprite and just use it raw. The animation is definitely a work
+in progress. They definitely need work, and should probably be moved to the built in sprite classes.
 
 """
 
-# imports:
-import random
 import pygame
 import vocab
 
-# CONSTANTS
-SCREEN_SIZE = (640, 360)  # for now. I've heard 640 x 360 is a good place to start
-FPS = 30  # Doesn't even need to be this high, but it's good practice
+SIZE = (640, 360)  # resolution
+FPS = 30
+
+pygame.mixer.init()  # init mixer
+pygame.init()        # init pygame
+
+MAIN_SURFACE = pygame.display.set_mode(SIZE)           # main surface
+FG_SURFACE = pygame.Surface((SIZE[0], SIZE[1] * .33))  # the bottom-third of the game screen
+FG_LOC = (0, SIZE[1] * .69)                            # The positioning of the bottom third
+
+VM = vocab.VocabManager()  # The word and category stuff, in an object
+
+# Window Icon and Caption
+pygame.display.set_caption("Graphical Hangman v1")
+icon_graphic = pygame.image.load("res/G_Hangman_Icon.png").convert_alpha()
+pygame.display.set_icon(icon_graphic)
+
+
+GAME_CLOCK = pygame.time.Clock()  # game clock
+
+# Some colors
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
 BG_COLOR = (118, 171, 145)  # A much lighter green
 FG_COLOR = (26, 87, 57)  # a sort of dark green
-TEXT_COLOR = (255, 255, 255)  # white
 
-# Stuff for the options menu
-PENALTY_LIMIT = 8  # The default penalty limit. I intend to make this adjustable in the options.
-MUSIC_ENABLED = True  # I intend to make this adjustable in the options
-PLAYER_NAME = "PLAYER 1"  # I intend to make this adjustable in the options
+# some fonts, all using the default pygame font
+NORMAL_FONT = pygame.font.Font(None, 30)
+SMALLER_FONT = pygame.font.Font(None, 24)
+LARGER_FONT = pygame.font.Font(None, 40)
 
-# PYGAME INIT and MAIN DISPLAY SURFACES
-pygame.mixer.init()  # init the mixer
-pygame.init()  # init PyGame
-MAIN_SURFACE = pygame.display.set_mode(SCREEN_SIZE)  # init the MAIN SURFACE
-FG_SURFACE = pygame.Surface((SCREEN_SIZE[0], SCREEN_SIZE[1] * (1 / 3)))  # for all intents and purposes, a DIV
-G0_SURFACE = pygame.Surface(SCREEN_SIZE)  # Just a game over screen
-MENU_POINTER = pygame.Surface((7, 7))  # Just a little menu cursor
-pygame.display.set_caption("GRAPHICAL HANGMAN")  # Might change this to something witty later
-icon_graphic = pygame.image.load("res/G_Hangman_Icon.png").convert_alpha()  # I like this icon, it is morbid and simple
-pygame.display.set_icon(icon_graphic)  # set the icon
-GAME_CLOCK = pygame.time.Clock()  # init the GAME CLOCK
-# will probably use some custom timers and some more stuff here
-# Timer for the title animation
-pygame.time.set_timer(pygame.USEREVENT+1, 280)
+# Some permanent locations on the menu screen:
+TEXT_POS_1 = (SIZE[0] * .66, SIZE[1] * .45)  # Top spot on the menu
+TEXT_POS_2 = (SIZE[0] * .66, SIZE[1] * .55)  # 2nd down
+TEXT_POS_3 = (SIZE[0] * .66, SIZE[1] * .65)  # 3rd down
+TEXT_POS_4 = (SIZE[0] * .66, SIZE[1] * .75)  # 4th down
 
-# LOAD SOUND (just effects and warbles, no looping music for this one)
+TEXT_POS_5 = (SIZE[0] * .25, SIZE[1] * .65)  # An extra spot for use in the options menu and maybe other things
 
+# LOAD SOUNDS
 # Some sounds to play during Hangsprite's animations
-sound_shuffle = pygame.mixer.Sound("res/shufflestep.wav")
-sound_rope_lower = pygame.mixer.Sound("res/rope_lower.wav")
-sound_horn = pygame.mixer.Sound("res/hangsprite_trumpet.wav")
-sound_drop = pygame.mixer.Sound("res/drop.wav")
-
-# Some little warbles to play during the splash screens:
-sound_victory_warble = pygame.mixer.Sound("res/victory_warble.wav")
-sound_defeat_womp = pygame.mixer.Sound("res/loser_womp.wav")
+sound_rope_lower = pygame.mixer.Sound("res/rope_lower.wav")  # A "ropey" sound
+sound_horn = pygame.mixer.Sound("res/hangsprite_trumpet.wav")  # a little trumpet blare
+sound_drop = pygame.mixer.Sound("res/drop.wav")  # a "CLUNK" sound
 
 # A short title tune
-sound_title_tune = pygame.mixer.Sound("res/entry_warble.wav")
+sound_title_tune = pygame.mixer.Sound("res/entry_warble.wav")  # A little entry tune with horn and drums
 
-
-# LOAD ART (not yet)
-# Title Screen (totally a placeholder)
+# LOAD ART
+# The oversized sprite sheets for the title graphic and the background sprite.
 game_over_sheet = pygame.image.load("res/graphical_hangman_menu_graphic_bigsheet.png").convert_alpha()
-hangsprite_bigsheet = pygame.image.load("res/graphical_hangman_hangsprite_bigsheet.png").convert_alpha()
+hangsprite_bigsheet = pygame.image.load("res/hangsprite_2.png").convert_alpha()
 
 
-# STRUCTURES AND CLASSES
-# The categories and the words they contain. Just some basic stuff for testing to start.
-class Category:
-    def __init__(self, name):
-        self.word_list = []
-        self.name = name
-
-    def add_word(self, c_word):
-        self.word_list.append(str(c_word).upper())
-
-
-cat_animals = Category("animals")  # ANIMALS
-for word in range(0, len(vocab.animals)):
-    cat_animals.add_word(vocab.animals[word])
-
-cat_food = Category("food")  # FOOD
-for word in range(0, len(vocab.food)):
-    cat_food.add_word(vocab.food[word])
-
-cat_geography = Category("geography")  # GEOGRAPHIC VOCAB
-for word in range(0, len(vocab.geography)):
-    cat_geography.add_word(vocab.geography[word])
-
-cat_military = Category("military")  # MILITARY VOCAB
-for word in range(0, len(vocab.military)):
-    cat_military.add_word(vocab.military[word])
-
-cat_space = Category("space")  # SPACE VOCAB
-for word in range(0, len(vocab.space)):
-    cat_space.add_word(vocab.space[word])
-
-cat_nature = Category("nature")  # NATURE VOCAB
-for word in range(0, len(vocab.nature)):
-    cat_nature.add_word(vocab.nature[word])
-
-cat_vehicles = Category("vehicles")  # VEHICLE RELATED
-for word in range(0, len(vocab.vehicles)):
-    cat_vehicles.add_word(vocab.vehicles[word])
-
-cat_music = Category("music")  # MUSIC RELATED
-for word in range(0, len(vocab.music)):
-    cat_music.add_word(vocab.music[word])
-
-cat_instruments = Category("instruments")  # INSTRUMENT RELATED
-for word in range(0, len(vocab.instruments)):
-    cat_instruments.add_word(vocab.instruments[word])
-
-cat_household = Category("household")  # HOUSEHOLD RELATED
-for word in range(0, len(vocab.household)):
-    cat_household.add_word(vocab.household[word])
-
-cat_history = Category("history")  # HISTORY RELATED, SORT OF
-for word in range(0, len(vocab.history)):
-    cat_history.add_word(vocab.history[word])
-
-cat_technology = Category("technology")  # TECHNOLOGY RELATED
-for word in range(0, len(vocab.technology)):
-    cat_technology.add_word(vocab.technology[word])
-
-cat_politics = Category("politics")  # POLITICS RELATED
-for word in range(0, len(vocab.parties)):
-    cat_politics.add_word(vocab.politics[word])
-
-cat_fantasy = Category("fantasy")  # FANTASY RELATED
-for word in range(0, len(vocab.fantasy)):
-    cat_fantasy.add_word(vocab.fantasy[word])
-
-cat_gaming = Category("gaming")  # GAMING RELATED
-for word in range(0, len(vocab.gaming)):
-    cat_gaming.add_word(vocab.gaming[word])
-
-cat_school = Category("school")  # SCHOOL RELATED
-for word in range(0, len(vocab.school)):
-    cat_school.add_word(vocab.school[word])
-
-cat_internet = Category("internet")  # INTERNET RELATED
-for word in range(0, len(vocab.internet)):
-    cat_internet.add_word(vocab.internet[word])
-
-cat_parties = Category("parties")  # PARTYING RELATED
-for word in range(0, len(vocab.parties)):
-    cat_parties.add_word(vocab.parties[word])
-
-cat_math = Category("math")  # MATH RELATED
-for word in range(0, len(vocab.math)):
-    cat_math.add_word(vocab.math[word])
-
-cat_challenge = Category("challenge")  # CHALLENGE WORDS
-for word in range(0, len(vocab.challenge)):
-    cat_challenge.add_word(vocab.challenge[word])
-
-
-# and many more
-
-
-class CategoryList:
+# All the stuff for the options menu, including surfaces and hitboxes
+class Options:
     def __init__(self):
-        self.category_list = []
+        self.music_enabled = True  # whether sound is on or off
+        self.penalty_limit = 8  # Difficulty Level (4=HARD,6=MEDIUM,8=EASY,10=VERY EASY)
 
-    def add_category(self, category):
-        self.category_list.append(category)
+        # the menu options. For each option:
+        # a Font.render() Surface
+        # a location on the screen
+        # a hitbox for using the Rect.collidepoint() function
+
+        # increase difficulty
+        self.increase_text = NORMAL_FONT.render("HARDER", False, WHITE)
+        self.increase_loc = TEXT_POS_1
+        self.increase_hitbox = pygame.Rect(self.increase_loc, (self.increase_text.get_width(), self.increase_text.get_height()))
+
+        # decrease difficulty
+        self.decrease_text = NORMAL_FONT.render("EASIER", False, WHITE)
+        self.decrease_loc = TEXT_POS_2
+        self.decrease_hitbox = pygame.Rect(self.decrease_loc, (self.decrease_text.get_width(), self.decrease_text.get_height()))
+
+        # enable/disable sound
+        self.sound_text = NORMAL_FONT.render("SOUND OFF/ON", False, WHITE)
+        self.sound_loc = TEXT_POS_3
+        self.sound_hitbox = pygame.Rect(self.sound_loc, (self.sound_text.get_width(), self.sound_text.get_height()))
+
+        # back
+        self.back_text = NORMAL_FONT.render("BACK", False, WHITE)
+        self.back_loc = TEXT_POS_4
+        self.back_hitbox = pygame.Rect(self.back_loc, (self.back_text.get_width(), self.back_text.get_height()))
+
+        # update (displays whatever just happened)
+        self.update_status = " "  # " ","SOUND OFF","SOUND ON","VERY EASY","EASY","MEDIUM","HARD"
+        self.update_text = NORMAL_FONT.render(str(self.update_status), False, WHITE)
+        self.update_loc = TEXT_POS_5
+        # end of menu options
+
+    # Turns the sound on and off by flipping the boolean
+    def switch_music(self):
+        if self.music_enabled is True:
+            self.music_enabled = False
+        elif self.music_enabled is False:
+            self.music_enabled = True
+
+    # Lowers the difficulty to the next level
+    # takes the current penalty limit, lowers it,
+    # and sets the new penalty limit
+    def decrease_difficulty(self, current_limit):
+        switches = {"4": 6, "6": 8, "8": 10}
+        self.penalty_limit = switches.get(str(current_limit))
+
+    # Does the same as the above, but increases the difficulty
+    def increase_difficulty(self, current_limit):
+        switches = {"10": 8, "8": 6, "6": 4}
+        self.penalty_limit = switches.get(str(current_limit))
+
+    # This shows the user a font surface with text
+    # that tells them what they just did in the options menu
+    def change_update_status_diff(self, diff):
+        status_dict = {"4": "HARD", "6": "MEDIUM", "8": "EASY", "10": "VERY EASY"}
+        self.update_status = status_dict.get(str(diff))
+        self.update_text = NORMAL_FONT.render(str(self.update_status), False, WHITE)
+
+    # Does the same as the above, but for the sound option
+    def change_update_status_sound(self):
+        if self.music_enabled is True:
+            self.update_status = "SOUND ON"
+        if self.music_enabled is False:
+            self.update_status = "SOUND OFF"
+        self.update_text = NORMAL_FONT.render(str(self.update_status), False, WHITE)
+
+    # takes the mouse coordinates from the event handling part of the game loop
+    # and uses them to check to the hitboxes for the clickable interface
+    # applied the effects of each button in the process.
+    def options_hitboxes(self, x, y):                                  # takes mouse coords
+        if self.increase_hitbox.collidepoint(x, y):                    # checks the increase hitbox
+            if self.penalty_limit > 4:                                 # checks current difficulty
+                self.increase_difficulty(self.penalty_limit)           # raise the difficulty
+                self.change_update_status_diff(self.penalty_limit)     # update the player of the change
+        elif self.decrease_hitbox.collidepoint(x, y):                  # checks decrease hitbox
+            if self.penalty_limit < 10:                                # checks the difficulty
+                self.decrease_difficulty(self.penalty_limit)           # lowers the difficulty
+                self.change_update_status_diff(self.penalty_limit)     # notify the player
+        elif self.sound_hitbox.collidepoint(x, y):                     # check the sound hitbox
+            self.switch_music()                                        # turn music on/off
+            self.change_update_status_sound()                          # notify the player
+        elif self.back_hitbox.collidepoint(x, y):                      # check the back button hitbox
+            title_screen.menu_state = "MAIN"                           # sends player back to main menu
 
 
-# Spawn the main instance of the category master list
-category_master_list = CategoryList()
-
-# Each category has to be added to the master list here:
-category_master_list.add_category(cat_animals)
-category_master_list.add_category(cat_food)
-category_master_list.add_category(cat_geography)
-category_master_list.add_category(cat_military)
-category_master_list.add_category(cat_space)
-category_master_list.add_category(cat_nature)
-category_master_list.add_category(cat_vehicles)
-category_master_list.add_category(cat_music)
-category_master_list.add_category(cat_instruments)
-category_master_list.add_category(cat_household)
-category_master_list.add_category(cat_history)
-category_master_list.add_category(cat_technology)
-category_master_list.add_category(cat_politics)
-category_master_list.add_category(cat_fantasy)
-category_master_list.add_category(cat_gaming)
-category_master_list.add_category(cat_school)
-category_master_list.add_category(cat_internet)
-category_master_list.add_category(cat_parties)
-category_master_list.add_category(cat_math)
-category_master_list.add_category(cat_challenge)
+# The instance of the Options class that I will be using
+options = Options()
 
 
-class HangSprite:  # The animated sprite which is the hanged man
+# The animated title screen, surfaces, data, and the animated background
+class TitleScreen:
     def __init__(self):
-        self.sheet = hangsprite_bigsheet
-        self.cell_width = 500
-        self.cell_height = 100
-        self.frame_x = 0
-        self.frame_y = 0
-        self.frame_max = 37
-        self.frame_counter = 0
-        self.animation_finished = False
-        self.cell_list = []
-        for y in range(0, 13):
-            for x in range(0, 3):
-                self.cell_list.append((x * 500, y * 100, 500, 100))
-        # animation phases:
-        # 0 = No Penalties, starts on frame 0 and sticks on frame 3
-        # 1 = Some Penalties, starts on frame 3 and sticks on frame 20 (walks to noose)
-        # 2 = More Penalties, starts on frame 20 and sticks on frame 32 (rope lowers and goes around his neck)
-        # 3 = Even More Penalties, starts on frame 32 and sticks on frame 34 (executioner raises arm)
-        # 4 = Max penalties, starts on frame 34 and sticks on frame 37 (hangsprite gets hanged)
-        self.phase = 0
-        self.dt = 0
+        self.sheet = game_over_sheet  # The sprite sheet for the title screen
+        self.cell_w = 640  # the width of a cell on the sheet
+        self.cell_h = 358  # the height
+        self.sheet_frames_x = 4  # how many frames wide the sheet is
+        self.sheet_frames_y = 6  # how many frames tall the sheet is
 
-    # I am going to attempt a delta time animation here instead of the pygame.USEREVENT timer I usually use
-    def update_hangsprite(self):
-        # Blit the appropriate rect from the sprite sheet
-        MAIN_SURFACE.blit(self.sheet, (0, SCREEN_SIZE[1] * .15), self.cell_list[self.frame_counter])
-        if self.dt >= 800:                        # if it has been more than 800ms since the last animation frame:
-            if self.phase is 0:                   # and it is in phase 0:
-                if self.frame_counter < 3:        # if the frame counter is less than 3
-                    self.frame_counter += 1       # add 1 to the frame counter
-                    self.dt = 0                   # Reset the delta time variable
-            elif self.phase is 1:                 # Or if it is in phase 1
-                if self.frame_counter < 20:       # and the frame counter is less than 20
-                    self.frame_counter += 1       # add 1 to the frame counter
-                    self.dt = 0                   # and reset the delta time variable
-                    sound_shuffle.play()          # And play a "footsteps" sound effect I made with bfxr
-            elif self.phase is 2:                 # or if it is in phase 2
-                if self.frame_counter < 32:       # and the frame counter is at less than 32
-                    self.frame_counter += 1       # add 1 to the frame counter
-                    self.dt = 0                   # reset the delta time variable
-                    sound_rope_lower.play()       # play a "ropey" sound effect I made with bfxr
-            elif self.phase is 3:                 # or if it is in phase 3
-                if self.frame_counter < 34:       # and the frame counter is less than 34
-                    self.frame_counter += 1       # add 1 to the frame counter
-                    self.dt = 0                   # reset the delta time variable
-                    if self.frame_counter is 33:  # If it is specifically on frame 33
-                        sound_horn.play()         # Play a little trumpet blare warble I made with bosca ceoil
-            elif self.phase is 4:                 # or if it is phase 4
-                if self.frame_counter < 37:       # and the frame counter is less than 37
-                    self.frame_counter += 1       # add 1 to the frame counter
-                    self.dt = 0                   # reset the delta time variable
-                    if self.frame_counter is 36:  # If the frame counter is specifically on frame 36
-                        sound_drop.play()         # Play the "drop" sound effect I made in bfxr
+        # creates a tuple which represents the rect required to blit a portion of the
+        # master sheet, for each frame of the animation, and stores them in an ordered list.
+        self.frames = []
+        for y in range(0, self.sheet_frames_y):
+            for x in range(0, self.sheet_frames_x):
+                # adds a rect tuple for each frame of the sheet
+                self.frames.append((x * self.cell_w, y * self.cell_h, self.cell_w, self.cell_h))
+
+        self.frame_counter = 0  # which frame the animation is currently "on"
+        self.frame_max = 22     # the total frames in the animation
+        self.dt = 0             # The delta time for this animation (ms since last frame-change)
+
+        # The menu state determines what is drawn on the screen later in the update() function
+        self.menu_state = "MAIN"  # "MAIN", "OPTIONS", "HIGH SCORE", "GAME", "QUIT"
+
+        # For each button on the main menu:
+        # a text surface
+        # a location on the map
+        # and a hitbox for using the mouse in the form of a Rect object.
+
+        # The new game button
+        self.new_game_text = NORMAL_FONT.render("NEW GAME", False, WHITE)
+        self.new_game_loc = TEXT_POS_1
+        self.new_game_text_hitbox = pygame.Rect(self.new_game_loc, (self.new_game_text.get_width(), self.new_game_text.get_height()))
+
+        # the options button
+        self.options_text = NORMAL_FONT.render("OPTIONS", False, WHITE)
+        self.options_loc = TEXT_POS_2
+        self.options_text_hitbox = pygame.Rect(self.options_loc, (self.options_text.get_width(), self.options_text.get_height()))
+
+        # the high score button
+        self.high_score_text = NORMAL_FONT.render("HIGH SCORES", False, WHITE)
+        self.high_score_loc = TEXT_POS_3
+        self.high_score_text_hitbox = pygame.Rect(self.high_score_loc, (self.high_score_text.get_width(), self.high_score_text.get_height()))
+
+        # the quit button
+        self.quit_text = NORMAL_FONT.render("QUIT", False, WHITE)
+        self.quit_loc = TEXT_POS_4
+        self.quit_text_hitbox = pygame.Rect(self.quit_loc, (self.quit_text.get_width(), self.quit_text.get_height()))
+
+    # Checks to see if any of the hitboxes are being touched
+    # using the Rect.collidepoint() function
+    # and if so, applies their effects
+    def main_hitboxes(self, x, y):                                    # takes the mouse coordinates
+        if self.quit_text_hitbox.collidepoint(x, y):                  # checks the quit hitbox
+            self.menu_state = "QUIT"                                  # changes the menu state to "QUIT"
+        elif self.options_text_hitbox.collidepoint(x, y):             # checks the options hitbox
+            self.menu_state = "OPTIONS"                               # changes the menu state to "OPTIONS"
+        elif self.new_game_text_hitbox.collidepoint(x, y):            # checks the new game hitbox
+            self.menu_state = "GAME"                                  # changes the state to "GAME"
+            # and some other stuff probably
+            reset()                                                   # resets the game
+            if options.music_enabled is True:                         # checks to see if the music is enabled
+                sound_title_tune.play()                               # plays the entry warble
 
 
-# The animated title screen
-class TitleScreen:  # The class that governs the title screen animation and functionality
+# the instance of the TitleScreen class
+title_screen = TitleScreen()
+
+
+# the Hangsprite, or background sprite.
+class HangSprite:
     def __init__(self):
-        # Whether or not the menu is toggled on
-        self.menu_on = True
-        # Whether or not the game is in active play or not
-        self.game_over = True
-        self.space_to_continue = False  # A switch for use in the game over and vic screens
-        # The image sprite sheet
-        self.sheet = game_over_sheet
-        self.cell_width = 640  # Cell width
-        self.cell_height = 358  # Cell height
-        self.frame_x = 0  # Which X-axis the frame tracker is at
-        self.frame_y = 0  # Which y-axis the frame tracker is at
-        self.frame_max = 22  # How many frames total in the sprite sheet
-        self.frame_counter = 0  # Which frame we are currently on
-        self.animation_finished = False  # Whether or not the animation is finished playing
-        self.font = pygame.font.Font(None, 30)  # Font
+        self.sheet = hangsprite_bigsheet  # the sprite sheet
+        self.cell_w = 160                 # the width of a cell
+        self.cell_h = 160                 # the height of a cell
+        self.sheet_frames_x = 6           # frames across
+        self.sheet_frames_y = 6           # frames tall
 
-        # Menu Options:
-        self.text_0 = self.font.render("NEW GAME", False, TEXT_COLOR)
-        self.text_1 = self.font.render("HIGH SCORES", False, TEXT_COLOR)  # not implemented yet
-        self.text_2 = self.font.render("OPTIONS", False, TEXT_COLOR)  # not implemented yet
-        self.text_3 = self.font.render("QUIT", False, TEXT_COLOR)
+        # creates a tuple which represents the rect required to blit a portion of the
+        # master sheet, for each frame of the animation, and stores them in an ordered list.
+        self.frames = []
+        for y in range(0, self.sheet_frames_y):
+            for x in range(0, self.sheet_frames_x):
+                # adds a rect tuple for each frame of the sheet
+                self.frames.append((x * self.cell_w, y * self.cell_h, self.cell_w, self.cell_h))
 
-        # the pointer
-        self.pointer_position = 0
-        # A list of possible pointer positions
-        self.pointer_pos_list = [(SCREEN_SIZE[0] * .60, SCREEN_SIZE[1] * .47), (SCREEN_SIZE[0] * .60, SCREEN_SIZE[1] * .57), (SCREEN_SIZE[0] * .60, SCREEN_SIZE[1] * .67), (SCREEN_SIZE[0] * .60, SCREEN_SIZE[1] * .77)]
+        self.frame_counter = 0      # what frame the animation is currently "on"
+        self.frame_max = 31         # max frame in the animation
+        self.dt = 0                 # ms since last frame change
 
-    def draw_title(self):
-        # display main menu
-        G0_SURFACE.fill(0)
-        MAIN_SURFACE.blit(G0_SURFACE, (0, 0))
-        if self.animation_finished is False:
-            # Play the title animation by frame:
-            MAIN_SURFACE.blit(game_over_sheet, (0, 0), (self.frame_x * 640, self.frame_y * 358, 640, 358))
-        elif self.animation_finished is True:
-            # Reset the "gears" for the next play of the animation
-            self.frame_y = 0
-            self.frame_x = 0
-            self.frame_counter = 0
-            # Stick to the last frame of the intro animation
-            MAIN_SURFACE.blit(game_over_sheet, (0, 0), (2 * 640, 5 * 358, 640, 358))
-            # And display the menu options
-            MAIN_SURFACE.blit(self.text_0, (SCREEN_SIZE[0] * .66, SCREEN_SIZE[1] * .45))
-            MAIN_SURFACE.blit(self.text_1, (SCREEN_SIZE[0] * .66, SCREEN_SIZE[1] * .55))
-            MAIN_SURFACE.blit(self.text_2, (SCREEN_SIZE[0] * .66, SCREEN_SIZE[1] * .65))
-            MAIN_SURFACE.blit(self.text_3, (SCREEN_SIZE[0] * .66, SCREEN_SIZE[1] * .75))
-            MENU_POINTER.fill(TEXT_COLOR)
-            MAIN_SURFACE.blit(MENU_POINTER, self.pointer_pos_list[self.pointer_position])
-
-    def title_animation_speeds(self):
-        # This is a jerry-rigged method of doing time-based animation that uses pygame.USEREVENT timers that tick off
-        # regularly at the desired speed rather than the simpler delta time method. Only reason it's still in here
-        # is because it works even though I used delta time for the hangsprite.
-        if self.frame_x is 3:
-            self.frame_y += 1
-            self.frame_x = 0
-        elif self.frame_x < 3:
-            self.frame_x += 1
-        self.frame_counter += 1
-        if self.frame_counter > self.frame_max:
-            self.animation_finished = True
+        # which phase the game is in. 0 = Fresh, 1 = 33% penalties, 2 = 66% penalties, 3 = game over
+        self.animation_phase = 0
 
 
-# The new game object
-class NewGame:
-    def __init__(self, player=PLAYER_NAME, penalty_limit=PENALTY_LIMIT):  # Will change these later in the options
-        self.player = player
-        self.penalty_limit = penalty_limit
-        self.penalties = 0  # How many wrong guesses the player has made
-        self.category = None  # The category
-        self.word = None  # The word
-        self.word_as_list = []  # the word in the form of a list
-        self.letters_guessed = []  # the letters guessed so far during this playthrough
-        self.points_to_win = 0  # How many correct guesses are required to win
-        self.points_so_far = 0  # How many correct guesses so far
-        self.display_word_as_list = []  # The display word that the player sees
-        self.font = pygame.font.Font(None, 30)  # A font
-        self.display_word_font = pygame.font.Font(None, 24)  # a smaller font
-        self.has_warbled = False  # A boolean switch for keeping track of the victory/defeat warble sounds
-        self.turn_taken = False  # Whether or not the player has taken their turn
+# the instance of the hangsprite class
+bg_sprite = HangSprite()
 
-    # Choose a new word at the beginning of the session
-    def choose_word(self):
-        # Clear the variables in question, like a re-initialization of the object
-        self.word = None
-        self.word_as_list = []
-        self.letters_guessed = []
-        self.display_word_as_list = []
-        # A list for keeping track of letters
-        letters = []
-        # Choose a category from the master list
-        self.category = random.choice(category_master_list.category_list)
-        # Choose a word from the category's word list
-        self.word = random.choice(self.category.word_list)
-        # Add an amount of underscores to the display word string that is equal to the length of the chosen word
-        for n in range(len(self.word)):
-            self.display_word_as_list.append("_")
 
-        for letter in self.word:
-            self.word_as_list.append(letter)  # Add the correct letters to the "list" version of the word
-            if letter not in letters:  # If the letter has not already been added (prevents double-counting the same letter)
-                letters.append(letter)  # add it to the list
-                self.points_to_win += 1  # And add a point required for winning
+# All the stuff for the hangman game, including surfaces and text
+class Hangman:
+    def __init__(self):
+        self.word = None            # the currently active word
+        self.display_word = ""      # the word which is displayed to the player
+        self.word_dict = {}         # a dictionary of letters in the word, with asterisk values
+        self.tried = []             # letters that have already been tried this turn
+        self.revealed_dict = {}     # dict gets each letter in word and has boolean value "HIDE" which hides the letter
+        self.category = None        # the current category
+        self.penalties = 0          # current number of penalties
+        self.streaking = False      # whether the player is currently on a streak
+        self.total_streak = 0       # total number of words in streak so far
+        self.score = 0              # score so far for this word (letters guessed correctly)
+        self.req_score = 0          # score required to win
+        self.over = False           # If there is a game over state
 
-    def draw_game(self):
-        # clear display surface
-        # MAIN_SURFACE.fill(0)
-        # update background
-        MAIN_SURFACE.fill(BG_COLOR)
-        # update foreground and text
-        FG_SURFACE.fill(FG_COLOR)
-        MAIN_SURFACE.blit(FG_SURFACE, (0, SCREEN_SIZE[1] * (2 / 3)))
+        # Several surfaces for the main game display and their locations:
+        # penalty surface
+        self.pen_surf = NORMAL_FONT.render("PENALTIES: " + str(self.penalties) + "/" + str(options.penalty_limit), False, WHITE)
+        self.pen_loc = (SIZE[0] * .6, SIZE[1] * .85)
 
-        # update animations (no animations yet)
+        # display word surface
+        self.display_surf = SMALLER_FONT.render(self.display_word, False, WHITE)
+        self.display_loc = (SIZE[0] * .1, SIZE[1] * .7)
 
-        # Display the chosen word and category:
-        display_word = self.display_word_font.render("Your word: " + str(self.display_word_as_list), False, TEXT_COLOR)
-        chosen_category = self.font.render("From category: " + str(self.category.name).upper(), False, TEXT_COLOR)
-        player_penalties = self.font.render("Penalties: " + str(self.penalties) + "/" + str(self.penalty_limit), False, TEXT_COLOR)
-        prompt_for_letter = self.font.render("Pick a letter!", False, TEXT_COLOR)
-        MAIN_SURFACE.blit(display_word, (SCREEN_SIZE[0] * .1, SCREEN_SIZE[1] * .7))
-        MAIN_SURFACE.blit(chosen_category, (SCREEN_SIZE[0] * .1, SCREEN_SIZE[1] * .85))
-        MAIN_SURFACE.blit(player_penalties, (SCREEN_SIZE[0] * .6, SCREEN_SIZE[1] * .85))
-        MAIN_SURFACE.blit(prompt_for_letter, (SCREEN_SIZE[0] * .6, SCREEN_SIZE[1] * .55))
+        # prompt surface
+        self.prompt_surf = NORMAL_FONT.render("Hit a letter key!", False, WHITE)
+        self.prompt_loc = (SIZE[0] * .6, SIZE[1] * .55)
 
-        # DEBUG CHEAT, remove this when finished
-        # debug_word = self.font.render("THE WORD: " + str(self.word), False, TEXT_COLOR)
-        # MAIN_SURFACE.blit(debug_word, (10, 10))
-        # debug_points = self.font.render("Points to win: " + str(self.points_to_win), False, TEXT_COLOR)
-        # MAIN_SURFACE.blit(debug_points, (10, 25))
+        # streak surface
+        self.streak_surf = SMALLER_FONT.render("WORD STREAK: " + str(self.total_streak), False, WHITE)
+        self.streak_loc = (SIZE[0] * .6, SIZE[1] * .62)
+
+        # category surface
+        self.cat_surf = SMALLER_FONT.render("FROM CATEGORY: " + str(self.category), False, WHITE)
+        self.cat_loc = (SIZE[0] * .1, SIZE[1] * .85)
+
+    # creates the dictionaries for managing the word and hiding it
+    def create_display_word(self):
+        self.word_dict = {str(k): "*" for k in self.word}
+        self.revealed_dict = {str(k): "HIDE" for k in self.word_dict}
+
+    # After every player input the display word has to be re-drawn
+    def handle_display_word(self):
+        a_word = [letter for letter in self.word]        # create an ordered list out of the word
+        display_word = ""                                # create an empty string
+        for char in a_word:                              # for each char in the list
+            if self.revealed_dict[char] is "HIDE":       # if their value is "HIDE" in the revealed_dict
+                display_word += "*"                      # add an asterisk to the display_word
+            else:                                        # else
+                display_word += str(char)                # add the letter itself to the display_word
+        self.display_word = display_word                 # update the display_word
+
+    # checks the corresponding key press
+    def check_letter(self, letter):                      # takes a character
+        if letter not in self.tried:                     # if not yet tried
+            if letter in self.word_dict:                 # and if not in the word_dict
+                self.revealed_dict[letter] = "FOUND"     # change its value in the revealed_dict to "FOUND"
+                self.score += 1                          # add one to the score
+                self.tried.append(letter)                # append the letter to the list of tried letters
+            else:                                        # else
+                self.penalties += 1                      # add one penalty
+                self.tried.append(letter)                # add the letter to the list of tried letters
+
+
+# the instance of the Hangman object
+hangman = Hangman()
 
 
 # FUNCTIONS
 
+# The update function, which is a little bloated.
+def update():
+    # fill the surface
+    MAIN_SURFACE.fill(BLACK)
+    # if the menu state is "MAIN"
+    if title_screen.menu_state is "MAIN":
+        # blit the title animation
+        MAIN_SURFACE.blit(title_screen.sheet, (0, 0), title_screen.frames[title_screen.frame_counter])
+        # blit the menu buttons
+        MAIN_SURFACE.blit(title_screen.new_game_text, title_screen.new_game_loc)
+        MAIN_SURFACE.blit(title_screen.options_text, title_screen.options_loc)
+        MAIN_SURFACE.blit(title_screen.quit_text, title_screen.quit_loc)
+        # update animation timer
+        if title_screen.frame_counter < title_screen.frame_max:   # if the current frame is less than the max frame
+            if title_screen.dt > 250:                             # if it's been more than 250ms since the last change
+                title_screen.frame_counter += 1                   # increase the frame counter to the next one
+                title_screen.dt = 0                               # reset the title animation's delta time variable
+    # else if the menu state is "OPTIONS"
+    elif title_screen.menu_state is "OPTIONS":
+        # blit the title animation
+        MAIN_SURFACE.blit(title_screen.sheet, (0, 0), title_screen.frames[title_screen.frame_counter])
+        # blit the menu buttons
+        MAIN_SURFACE.blit(options.increase_text, options.increase_loc)
+        MAIN_SURFACE.blit(options.decrease_text, options.decrease_loc)
+        MAIN_SURFACE.blit(options.sound_text, options.sound_loc)
+        MAIN_SURFACE.blit(options.back_text, options.back_loc)
+        MAIN_SURFACE.blit(options.update_text, options.update_loc)
+        # update animation timer
+        if title_screen.frame_counter < title_screen.frame_max:   # if the current frame is less than the max frame
+            if title_screen.dt > 250:                             # if it's been more than 250ms since the last chance
+                title_screen.frame_counter += 1                   # increase the frame to the next one
+                title_screen.dt = 0                               # reset the delta time variable
+    # else if the menu state is "GAME"
+    elif title_screen.menu_state is "GAME":
+        # fill the background with the background color
+        MAIN_SURFACE.fill(BG_COLOR)
+        # fill the lower third
+        FG_SURFACE.fill(FG_COLOR)
+        # blit the lower third
+        MAIN_SURFACE.blit(FG_SURFACE, FG_LOC)
+        # blit the background sprite
+        MAIN_SURFACE.blit(bg_sprite.sheet, (10, 10), bg_sprite.frames[bg_sprite.frame_counter])
 
-# MAIN
+        # control the animation speed of the background sprite through
+        # the phases of the game
+        if bg_sprite.dt > 500:                                              # if it's been more than 500ms
+            if bg_sprite.animation_phase is 0:                              # if the animation phase is 0
+                if bg_sprite.frame_counter < 16:                            # and the frame is less than 16
+                    bg_sprite.frame_counter += 1                            # move to the next frame
+                    bg_sprite.dt = 0                                        # reset the delta time variable
+            elif bg_sprite.animation_phase is 1:                            # else if the animation is in phase 1
+                if bg_sprite.frame_counter < 23:                            # and the frame is less than 23
+                    bg_sprite.frame_counter += 1                            # move to the next frame
+                    bg_sprite.dt = 0                                        # reset the delta time variable
+                    if options.music_enabled is True:                       # if music is enabled
+                        sound_rope_lower.play()                             # play the ropey sound effect
+            elif bg_sprite.animation_phase is 2:                            # else if in phase 2
+                if bg_sprite.frame_counter < 29:                            # if the frame is less than 29
+                    bg_sprite.frame_counter += 1                            # move the frame to the next one
+                    bg_sprite.dt = 0                                        # and reset the delta time variable
+                    if options.music_enabled is True:                       # if music is enabled
+                        sound_rope_lower.play()                             # play the ropey sound effect
+            elif bg_sprite.animation_phase is 3:                            # else if in animation phase 3
+                if bg_sprite.frame_counter < bg_sprite.frame_max:           # if frame count is less than max
+                    bg_sprite.frame_counter += 1                            # move to the next frame
+                    bg_sprite.dt = 0                                        # and reset the delta time variable
+                    if bg_sprite.frame_counter == bg_sprite.frame_max - 1:  # if the frame counter is the 2nd to last
+                        if options.music_enabled is True:                   # and if music is enabled
+                            sound_horn.play()                               # play the trumpet effect
+                    elif bg_sprite.frame_counter == bg_sprite.frame_max:    # else if it's the last frame
+                        if options.music_enabled is True:                   # and music is enabled
+                            sound_drop.play()                               # play the "CLUNK" sound effect
+
+        # redraw the display word
+        hangman.handle_display_word()
+
+        # create the various surfaces
+        hangman.pen_surf = NORMAL_FONT.render("PENALTIES: " + str(hangman.penalties) + "/" + str(options.penalty_limit), False, WHITE)
+        hangman.display_surf = LARGER_FONT.render(hangman.display_word, False, WHITE)
+        hangman.prompt_surf = NORMAL_FONT.render("Hit a letter key!", False, WHITE)
+        hangman.streak_surf = SMALLER_FONT.render("WORD STREAK: " + str(hangman.total_streak), False, WHITE)
+        hangman.cat_surf = SMALLER_FONT.render("FROM CATEGORY: " + str(hangman.category), False, WHITE)
+
+        # and then blit those surfaces
+        MAIN_SURFACE.blit(hangman.pen_surf, hangman.pen_loc)
+        MAIN_SURFACE.blit(hangman.display_surf, hangman.display_loc)
+        MAIN_SURFACE.blit(hangman.cat_surf, hangman.cat_loc)
+        MAIN_SURFACE.blit(hangman.prompt_surf, hangman.prompt_loc)
+        MAIN_SURFACE.blit(hangman.streak_surf, hangman.streak_loc)
+
+        # if the game over state is true then
+        # create a game over blurb and blit it
+        # and let the player know what the word was
+        if hangman.over is True:
+            FG_SURFACE.fill(BLACK)
+            MAIN_SURFACE.blit(FG_SURFACE, FG_LOC)
+            blurb_text = None
+            # apply the right value to the label depending
+            # on whether it was a win or loss
+            if hangman.penalties >= options.penalty_limit:
+                blurb_text = "YOU LOSE, CLICK TO CONTINUE"
+            elif hangman.score >= hangman.req_score:
+                blurb_text = "YOU WIN, CLICK TO CONTINUE"
+            # create the surfaces
+            blurb_surf = LARGER_FONT.render(blurb_text, False, WHITE)
+            word_hint = NORMAL_FONT.render("Word was: " + hangman.word, False, WHITE)
+            # blit the surfaces
+            MAIN_SURFACE.blit(blurb_surf, (0, SIZE[1] * .75))
+            MAIN_SURFACE.blit(word_hint, (0, SIZE[1] * .85))
+
+
+# A reset function
+def reset():
+    hangman.penalties = 0                           # resets the penalties
+    hangman.score = 0                               # resets the score
+    hangman.req_score = 0                           # resets the required score to win
+    hangman.word = None                             # resets the word
+    hangman.tried = []                              # resets the list of attempted letters
+    hangman.word_dict = {}                          # reset the word_dict that holds the letters
+    hangman.revealed_dict = {}                      # reset the revealed_dict that hides the letters
+    VM.choose_word()                                # VocabManager picks a new word
+    hangman.word = VM.chosen_word                   # word is applied to the hangman game
+    hangman.category = VM.chosen_cat_name           # category is applied to the hangman game
+    hangman.req_score = VM.calculate_score()        # calculate the required score for the next word
+    hangman.create_display_word()                   # create dicts out of the new word
+    bg_sprite.animation_phase = 0                   # reset the background sprite animation phase to 0
+    bg_sprite.frame_counter = 0                     # reset the background sprite frame counter to 0
+
+
+# a smaller reset function
+def smaller_reset():
+    hangman.penalties = 0
+    hangman.score = 0
+    hangman.req_score = 0
+    hangman.word = None
+    hangman.tried = []
+    hangman.word_dict = {}
+    hangman.revealed_dict = {}
+    bg_sprite.animation_phase = 0
+    bg_sprite.frame_counter = 0
+
+
+# the main function
 def main():
-    title_screen = TitleScreen()  # init the title screen object
-    game_loop = True
-    new_game = NewGame()  # init the game object
-    hangsprite = HangSprite()  # init the hangsprite animation object
 
-    def reset_game():  # this function resets the game in between words by resetting multiple variables found elsewhere.
-        title_screen.game_over = True
-        # Reset stuff
-        title_screen.menu_on = True
-        new_game.points_so_far = 0
-        new_game.points_to_win = 0
-        new_game.penalties = 0
-        hangsprite.frame_counter = 0
-        new_game.has_warbled = False
+    # main loop
+    stopped = False
+    while not stopped:
 
-    # Game loop starts
-    while game_loop:
-
-        # Check event queue
+        # check the event queue
         for event in pygame.event.get():
 
-            # Check for quit functionality
+            # Quit checker
             if event.type is pygame.QUIT:
-                game_loop = False
+                stopped = True
 
-            # Animation speed limits for the title animation (NOT delta time)
-            if event.type is pygame.USEREVENT+1:
-                title_screen.title_animation_speeds()
+            # If the event is a mouse button up
+            if event.type is pygame.MOUSEBUTTONUP:
 
-            # Check for key-presses. Eventually I'll need to go through every key.
+                # get the mouse position and check the hitboxes for the main menu
+                if title_screen.menu_state is "MAIN":
+                    mouse_pos = pygame.mouse.get_pos()
+                    title_screen.main_hitboxes(mouse_pos[0], mouse_pos[1])
+
+                # get the mouse position and check the hitboxes for the options menu
+                elif title_screen.menu_state is "OPTIONS":
+                    mouse_pos = pygame.mouse.get_pos()
+                    options.options_hitboxes(mouse_pos[0], mouse_pos[1])
+
+                # during game over state, reset the game on a click
+                elif title_screen.menu_state is "GAME":
+                    if hangman.over is True:                   # check for game over state
+                        if hangman.streaking is True:          # if the player won
+                            hangman.total_streak += 1          # add to the streak
+                        elif hangman.streaking is False:       # if they lost
+                            hangman.total_streak *= 0          # erase it
+                        smaller_reset()                        # apply the small reset function
+                        title_screen.menu_state = "MAIN"       # change the menu state to "MAIN"
+                        hangman.over = False                   # remove the game over state
+
+            # Check for key presses:
             if event.type is pygame.KEYUP:
 
-                # "space to continue"
-                if event.key is pygame.K_SPACE:  # if they press space
-                    if title_screen.space_to_continue is True:  # and the "space to continue" message is showing
-                        reset_game()  # then reset the game
-                        title_screen.space_to_continue = False  # and remove the "space to continue" flag
+                # if a game is currently active
+                if title_screen.menu_state is "GAME":
 
-                # If the main menu is on
-                if title_screen.menu_on is True:
-                    # For now this will double as the "up" key
-                    if event.key is pygame.K_w:
-                        if title_screen.pointer_position is not 0:
-                            title_screen.pointer_position -= 1
-
-                    # For now this will double as the "down" key
-                    if event.key is pygame.K_s:
-                        if title_screen.pointer_position is not 3:
-                            title_screen.pointer_position += 1
-
-                    # The enter key, of course
-                    if event.key is pygame.K_RETURN:
-                        # New Game
-                        if title_screen.pointer_position is 0:
-                            # A whole bunch of game resetting stuff
-                            title_screen.game_over = False  # Change the game state
-                            title_screen.menu_on = False
-                            title_screen.animation_finished = False  # Reset the title animation for later use
-                            hangsprite.animation_finished = False
-                            hangsprite.dt = 0
-                            hangsprite.phase = 0
-                            new_game.choose_word()
-                            sound_title_tune.play()  # Play the title warble I made with bosca ceoil
-
-                        # High Scores
-                        elif title_screen.pointer_position is 1:
-                            pass  # NOT IMPLEMENTED YET
-
-                        # Options (penalty limits, maybe music)
-                        elif title_screen.pointer_position is 2:
-                            pass  # NOT IMPLEMENTED YET
-
-                        # Quit
-                        elif title_screen.pointer_position is 3:
-                            game_loop = False
-
-                # If the main menu or game over screen is not active
-                # Loop through each letter and use a function to check and apply points or penalties
-                elif title_screen.menu_on is False:
-                    if new_game.turn_taken is False:
-
-                        # if the letter is in the chosen word
-                        def letter_checker(letter):
-                            if letter in new_game.word:
-                                # Swap out the display letters so the player can see what they got
-                                for let in range(0, len(new_game.word_as_list)):
-                                    if new_game.word_as_list[let] is letter:
-                                        new_game.display_word_as_list[let] = letter
-                                # And it hasn't already been guessed
-                                if letter not in new_game.letters_guessed:
-                                    # Add it to the list of letters guessed
-                                    new_game.letters_guessed.append(letter)
-                                    # And add some victory points to the counter
-                                    new_game.points_so_far += 1
-                                    # Mark the turn as over
-                                    new_game.turn_taken = True
-                            # Otherwise, if the letter is not in the chosen word
-                            else:
-                                if letter not in new_game.letters_guessed:
-                                    # Add it to the list of letters guessed
-                                    new_game.letters_guessed.append(letter)
-                                    # Add a penalty if letter not already guessed
-                                    new_game.penalties += 1
-                                    # And mark the turn as over, so the animation can play (eventually)
-                                    new_game.turn_taken = True
-
-                        # The letters of the alphabet. For each one, apply the function that checks to see
-                        # if it is valid and acts accordingly.
+                    # check each key with the check_letter() function
+                    if title_screen.menu_state is "GAME":
                         if event.key is pygame.K_a:
-                            letter_checker("A")
+                            hangman.check_letter("A")
                         elif event.key is pygame.K_b:
-                            letter_checker("B")
+                            hangman.check_letter("B")
                         elif event.key is pygame.K_c:
-                            letter_checker("C")
+                            hangman.check_letter("C")
                         elif event.key is pygame.K_d:
-                            letter_checker("D")
+                            hangman.check_letter("D")
                         elif event.key is pygame.K_e:
-                            letter_checker("E")
+                            hangman.check_letter("E")
                         elif event.key is pygame.K_f:
-                            letter_checker("F")
+                            hangman.check_letter("F")
                         elif event.key is pygame.K_g:
-                            letter_checker("G")
+                            hangman.check_letter("G")
                         elif event.key is pygame.K_h:
-                            letter_checker("H")
+                            hangman.check_letter("H")
                         elif event.key is pygame.K_i:
-                            letter_checker("I")
+                            hangman.check_letter("I")
                         elif event.key is pygame.K_j:
-                            letter_checker("J")
+                            hangman.check_letter("J")
                         elif event.key is pygame.K_k:
-                            letter_checker("K")
+                            hangman.check_letter("K")
                         elif event.key is pygame.K_l:
-                            letter_checker("L")
+                            hangman.check_letter("L")
                         elif event.key is pygame.K_m:
-                            letter_checker("M")
+                            hangman.check_letter("M")
                         elif event.key is pygame.K_n:
-                            letter_checker("N")
+                            hangman.check_letter("N")
                         elif event.key is pygame.K_o:
-                            letter_checker("O")
+                            hangman.check_letter("O")
                         elif event.key is pygame.K_p:
-                            letter_checker("P")
+                            hangman.check_letter("P")
                         elif event.key is pygame.K_q:
-                            letter_checker("Q")
+                            hangman.check_letter("Q")
                         elif event.key is pygame.K_r:
-                            letter_checker("R")
+                            hangman.check_letter("R")
                         elif event.key is pygame.K_s:
-                            letter_checker("S")
+                            hangman.check_letter("S")
                         elif event.key is pygame.K_t:
-                            letter_checker("T")
+                            hangman.check_letter("T")
                         elif event.key is pygame.K_u:
-                            letter_checker("U")
+                            hangman.check_letter("U")
                         elif event.key is pygame.K_v:
-                            letter_checker("V")
+                            hangman.check_letter("V")
                         elif event.key is pygame.K_w:
-                            letter_checker("W")
+                            hangman.check_letter("W")
                         elif event.key is pygame.K_x:
-                            letter_checker("X")
+                            hangman.check_letter("X")
                         elif event.key is pygame.K_y:
-                            letter_checker("Y")
+                            hangman.check_letter("Y")
                         elif event.key is pygame.K_z:
-                            letter_checker("Z")
+                            hangman.check_letter("Z")
 
-        # TURN CYCLE
+        # Quit if the player hits the quit option in the menu
+        if title_screen.menu_state is "QUIT":
+            stopped = True
 
-        if title_screen.game_over is False:  # If the game is running
-            if new_game.points_so_far >= new_game.points_to_win:  # and if they have more points than they need to win
-                # user presses space to reset the game
-                title_screen.space_to_continue = True
-                # A victory warble if it has not played yet:
-                if new_game.has_warbled is False:
-                    sound_victory_warble.play()
-                    new_game.has_warbled = True
-            # else if they have more penalties than the penalty limit
-            elif new_game.penalties >= new_game.penalty_limit:
-                # play the hangsprite defeat animation
-                hangsprite.phase = 4
-                # user can press space to reset game
-                title_screen.space_to_continue = True
-                # A loser womp-womp if it hasn't played yet:
-                if new_game.has_warbled is False:
-                    sound_defeat_womp.play()
-                    new_game.has_warbled = True
-            else:
-                # Check to see if the hangman needs to go to the next phase
-                # Phase 1 threshold 25%
-                if new_game.penalties >= new_game.penalty_limit * .25 and new_game.penalties < new_game.penalty_limit * .5:
-                    hangsprite.phase = 1
-                # Phase 2 threshold 50%
-                elif new_game.penalties >= new_game.penalty_limit * .50 and new_game.penalties < new_game.penalty_limit * .75:
-                    hangsprite.phase = 2
-                # phase 3 threshold 75%
-                elif new_game.penalties >= new_game.penalty_limit * .75 and new_game.penalties < new_game.penalty_limit:
-                    hangsprite.phase = 3
+        # if the player is in game and has won
+        # then flag as streaking and enable the game over state
+        if title_screen.menu_state is "GAME":
+            if hangman.score >= hangman.req_score:
+                hangman.streaking = True
+                hangman.over = True
 
-                # Restart the turn-cycle
-                new_game.turn_taken = False
+        # During the game, checks every frame to see if the penalty limit has
+        # gone beyond the threshold for the next animation phase
+        if title_screen.menu_state is "GAME":
+            if hangman.penalties >= options.penalty_limit * .33 and hangman.penalties < options.penalty_limit * .66:
+                bg_sprite.animation_phase = 1
+            elif hangman.penalties >= options.penalty_limit * .66 and hangman.penalties < options.penalty_limit:
+                bg_sprite.animation_phase = 2
 
-        # DRAW PORTION
-        # If just booted up or after a session
-        if title_screen.game_over is True:
-            # Run the title screen
-            title_screen.draw_title()
-        # otherwise, if in the middle of a game, draw the game
-        elif title_screen.game_over is False:
-            new_game.draw_game()  # The main draw sequence
-            # AND, draw the HangSprite! His animations will accompany everything else.
-            hangsprite.update_hangsprite()
-            # Draw space to continue vic/def popups
-            if new_game.points_so_far >= new_game.points_to_win:
-                # VICTORY POPUP
-                def_pop = pygame.Surface((SCREEN_SIZE[0], 50))
-                def_pop.fill(0)
-                def_text = title_screen.font.render("YOU WIN! Space to continue...", False, TEXT_COLOR)
-                MAIN_SURFACE.blit(def_pop, (0, SCREEN_SIZE[1] * .5))
-                MAIN_SURFACE.blit(def_text, (0, SCREEN_SIZE[1] * .52))
-                debug_word = title_screen.font.render("THE WORD WAS: " + str(new_game.word), False, TEXT_COLOR)
-                def_pop.fill(0)
-                MAIN_SURFACE.blit(def_pop, (0, SCREEN_SIZE[1] * .01))
-                MAIN_SURFACE.blit(debug_word, (0, SCREEN_SIZE[1] * .03))
-            elif new_game.penalties >= new_game.penalty_limit:
-                # DEFEAT POPUP
-                def_pop = pygame.Surface((SCREEN_SIZE[0], 50))
-                def_pop.fill(0)
-                def_text = title_screen.font.render("YOU LOSE! Space to continue...", False, TEXT_COLOR)
-                MAIN_SURFACE.blit(def_pop, (0, SCREEN_SIZE[1] * .5))
-                MAIN_SURFACE.blit(def_text, (0, SCREEN_SIZE[1] * .52))
-                debug_word = title_screen.font.render("THE WORD WAS: " + str(new_game.word), False, TEXT_COLOR)
-                def_pop.fill(0)
-                MAIN_SURFACE.blit(def_pop, (0, SCREEN_SIZE[1] * .01))
-                MAIN_SURFACE.blit(debug_word, (0, SCREEN_SIZE[1] * .03))
+            # if penalty limit reached then end the player's streak, finish the
+            # animation, and enable game over state
+            elif hangman.penalties >= options.penalty_limit:
+                bg_sprite.animation_phase = 3
+                # erase streak
+                hangman.streaking = False
+                # end game state
+                hangman.over = True
 
-        # flip the display
+        # draw the background with the update() function
+        update()
+
+        # Update the display
         pygame.display.flip()
 
         # pump the queue
         pygame.event.pump()
 
-        dt = GAME_CLOCK.tick(FPS)  # Keep it at 30 FPS
-        hangsprite.dt += dt  # Whoah this actually works, way easier than my "gears."
+        # Framerate stuff
+        dt = GAME_CLOCK.tick(FPS)  # set the delta time variable and the framerate
+        title_screen.dt += dt  # add the delta time to the title animation's delta time
+        bg_sprite.dt += dt  # add the delta time to the background sprite's delta time
 
-    pygame.quit()  # Exit the app if the user leaves the game loop by clicking the X
+    # Quit the program if the user exits
+    pygame.quit()
 
 
+# start point
 if __name__ == "__main__":
     main()
+
+
+

@@ -1,52 +1,151 @@
 """
-19 AUG 2018
 Sam Gibson
+23 AUG
 
-This is used in main.py to select random words during play. You can expand the vocabulary just by adding
-words to the lists. Adding new categories with new lists requires fiddling in main.py a little bit but is very
-doable. Eventually I want this to be an exhaustive list, and I'm not too worried about duplication since I went
-for a subjective and overlapping category system that just vaguely "hints" at the category of the word. The bigger
-this file the better the game will be, whether the words are duplicated or not, so long as the words are at least
-vaguely related to the categories.
+The vocab manager for the main.py file for Graphical Hangman v1
 
 """
+import random
 
-animals = ["cat", "bat", "dog", "bear", "whale", "lion", "pig", "goat", "cow", "snake"]
 
-food = ["apple", "banana", "pear", "pizza", "pie", "beef", "taco", "cheese", "carrot", "peanut"]
+# THE RAW CATEGORIES
+cat_animals = ["cat", "bat", "dog", "bear", "whale", "lion", "pig", "goat", "cow", "snake"]
+cat_food = ["apple", "banana", "pear", "pizza", "pie", "beef", "taco", "cheese", "carrot", "peanut"]
+cat_geography = ["mountain", "lake", "ocean", "hill", "valley", "cliff", "bay", "peninsula", "range", "plains"]
+cat_military = ["tank", "jet", "nuke", "rank", "war", "sergeant", "trench", "rifle", "uniform", "orders"]
+cat_space = ["star", "planet", "moon", "vacuum", "meteor", "comet", "asteroid", "gravity", "mars", "jupiter"]
+cat_nature = ["tree", "breeze", "desert", "plains", "bugs", "sky", "clouds", "river", "forest", "beach"]
+cat_vehicles = ["car", "bus", "truck", "plane", "train", "boat", "blimp", "bike", "wagon", "horse"]
+cat_music = ["rock", "country", "rap", "fuzz", "metal", "folk", "riff", "chord", "scale", "octave"]
+cat_instruments = ["tuba", "guitar", "bass", "harmonica", "violin", "cello", "piano", "drums", "trombone", "saxophone"]
+cat_household = ["phone", "kitchen", "closet", "room", "curtains", "carpet", "attic", "basement", "garage", "driveway"]
+cat_history = ["medieval", "renaissance", "ancient", "prehistoric", "archaeology", "ruins"]
+cat_technology = ["phone", "circuit", "wire", "transistor", "gate", "miniaturization", "electromagnetic", "signal",
+                  "antenna", "display"]
+cat_politics = ["democrat", "republican", "libertarian", "communism", "capitalism", "socialism", "fascism", "vote",
+                "coup", "election"]
+cat_fantasy = ["dragon", "princess", "sword", "magic", "dungeon", "goblin", "elf", "orc", "hobbit", "unicorn"]
+cat_gaming = ["role", "shooter", "strategy", "simulation", "sandbox", "jrpg", "tactical", "steam", "twitch", "indie"]
+cat_school = ["pencil", "paper", "textbook", "teacher", "lunch", "locker", "backpack", "grades", "finals", "graduation"]
+cat_internet = ["wifi", "broadband", "network", "gateway", "router", "provider", "neutrality", "piracy", "facebook",
+                "reddit"]
+cat_parties = ["drunk", "wasted", "dancing", "barfing", "social", "music", "guests", "surprise", "frat", "sorority"]
+cat_math = ["division", "subtraction", "addition", "multiplication", "fraction", "decimal", "algebra", "calculus",
+            "equation", "proof"]
+cat_challenge = ["discomforting", "stargazing", "revolutionary", "discombobulated", "superconducting",
+                 "superconductor", "microprocessor", "parliamentarian"]
+cat_colors = ["YELLOW", "RED", "BLUE", "GREEN", "WHITE", "BLACK", "BROWN", "GRAY", "GREY", "PURPLE"]
+cat_noises = ["CRY", "LAUGH", "COUGH", "BANG", "CRASH", "CRACK", "SHOUT", "WHISPER", "GIGGLE", "GROAN"]
+cat_cities = ["PORTLAND", "SEATTLE", "CHICAGO", "LONDON", "LOUISVILLE", "CANBERRA", "PRAGUE", "SANTIAGO", "MOGADISHU",
+              "CAIRO", "PARIS", "MOSCOW", "CALCUTTA", "SHANGHAI", "SEOUL"]
+cat_shapes = ["SQUARE", "RECTANGLE", "RHOMBOID", "TRIANGLE", "PYRAMID", "PARALLELOGRAM", "SPHERE", "CYLINDER", "CONE",
+              "CONVEX"]
+cat_numbers = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN", "TWELVE",
+               "THIRTEEN"]
+cat_drinks = ["WATER", "BEER", "SODA", "POP", "ALE", "JUICE", "ENERGY", "COFFEE", "WINE", "MILK"]
+cat_languages = ["SIGN", "ENGLISH", "SPANISH", "ARABIC", "MANDARIN", "JAPANESE", "HINDI", "RUSSIAN", "FRENCH", "DUTCH",
+                 "SWAHILI", "GERMAN", "SWEDISH", "ITALIAN", "DANISH", "LITHUANIAN", "CANTONESE", "PORTUGUESE"]
+cat_entertainment = ["television", "radio", "streaming", "netflix", "hulu", "comedy", "play", "theater", "sports",
+                     "music", "poetry", "park"]
+cat_art = ["painting", "singing", "sculpture", "sketch", "draw", "paint", "palette", "photography", "design",
+           "portrait"]
 
-geography = ["mountain", "lake", "ocean", "hill", "valley", "cliff", "bay", "peninsula", "range", "plains"]
+# cat_authors = ["DICKENS", "HERBERT", "HEINLEIN", "TWAIN", "DELANEY"]  # I'll save this for two word functionality
 
-military = ["tank", "jet", "nuke", "rank", "war", "sergeant", "trench", "rifle", "uniform", "orders"]
 
-space = ["star", "planet", "moon", "vacuum", "meteor", "comet", "asteroid", "gravity", "mars", "jupiter"]
+# CATEGORY MASTER LIST
+category_list = []
 
-nature = ["tree", "breeze", "desert", "plains", "bugs", "sky", "clouds", "river", "forest", "beach"]
 
-vehicles = ["car", "bus", "truck", "plane", "train", "boat", "blimp", "bike", "wagon", "horse"]
+class Category:
+    def __init__(self, cat_list, name):
+        self.word_list = cat_list
+        self.name = name
+        category_list.append(self)
 
-music = ["rock", "country", "rap", "fuzz", "metal", "folk", "riff", "chord", "scale", "octave"]
 
-instruments = ["tuba", "guitar", "bass", "harmonica", "violin", "cello", "piano", "drums", "trombone", "saxophone"]
+art = Category(cat_art, "ART")
 
-household = ["phone", "kitchen", "closet", "room", "curtains", "carpet", "attic", "basement", "garage", "driveway"]
+entertainment = Category(cat_entertainment, "ENTERTAINMENT")
 
-history = ["medieval", "renaissance", "ancient", "prehistoric", "archaeology", "ruins"]
+colors = Category(cat_colors, "COLORS")
 
-technology = ["phone", "circuit", "wire", "transistor", "gate", "miniaturization", "electromagnetic", "signal", "antenna", "display"]
+languages = Category(cat_languages, "LANGUAGES")
 
-politics = ["democrat", "republican", "libertarian", "communism", "capitalism", "socialism", "fascism", "vote", "coup", "election"]
+drinks = Category(cat_drinks, "DRINKS")
 
-fantasy = ["dragon", "princess", "sword", "magic", "dungeon", "goblin", "elf", "orc", "hobbit", "unicorn"]
+numbers = Category(cat_numbers, "NUMBERS")
 
-gaming = ["role", "shooter", "strategy", "simulation", "sandbox", "jrpg", "tactical", "steam", "twitch", "indie"]
+shapes = Category(cat_shapes, "SHAPES")
 
-school = ["pencil", "paper", "textbook", "teacher", "lunch", "locker", "backpack", "grades", "finals", "graduation"]
+cities = Category(cat_cities, "CITIES")
 
-internet = ["wifi", "broadband", "network", "gateway", "router", "provider", "neutrality", "piracy", "facebook", "reddit"]
+noises = Category(cat_noises, "NOISES")
 
-parties = ["drunk", "wasted", "dancing", "barfing", "social", "music", "guests", "surprise", "frat", "sorority"]
+animals = Category(cat_animals, "ANIMALS")
 
-math = ["division", "subtraction", "addition", "multiplication", "fraction", "decimal", "algebra", "calculus", "equation", "proof"]
+food = Category(cat_food, "FOOD")
 
-challenge = ["discomforting", "stargazing", "revolutionary", "discombobulated", "superconducting", "superconductor", "microprocessor", "parliamentarian"]
+geography = Category(cat_geography, "GEOGRAPHY")
+
+military = Category(cat_military, "MILITARY")
+
+space = Category(cat_space, "SPACE")
+
+nature = Category(cat_nature, "NATURE")
+
+vehicles = Category(cat_vehicles, "VEHICLES")
+
+music = Category(cat_music, "MUSIC")
+
+instruments = Category(cat_instruments, "INSTRUMENTS")
+
+household = Category(cat_household, "HOUSEHOLD")
+
+history = Category(cat_history, "HISTORY")
+
+technology = Category(cat_technology, "TECHNOLOGY")
+
+politics = Category(cat_politics, "POLITICS")
+
+fantasy = Category(cat_fantasy, "FANTASY")
+
+gaming = Category(cat_gaming, "GAMING")
+
+school = Category(cat_school, "SCHOOL")
+
+internet = Category(cat_internet, "INTERNET")
+
+parties = Category(cat_parties, "PARTIES")
+
+math = Category(cat_math, "MATH")
+
+challenge = Category(cat_challenge, "CHALLENGE")
+
+
+class VocabManager:
+    def __init__(self):
+        self.categories = category_list
+        self.chosen_cat = None
+        self.chosen_cat_name = None
+        self.chosen_word = None
+
+    def choose_word(self):
+        self.chosen_cat = random.choice(self.categories)
+        self.chosen_cat_name = self.chosen_cat.name
+        self.chosen_word = random.choice(self.chosen_cat.word_list).upper()
+
+    def calculate_score(self):
+
+        points = 0
+
+        a_dict = {str(k): "Nada" for k in self.chosen_word}
+
+        for keys in a_dict:
+            points += 1
+
+        return points
+
+
+
+
