@@ -18,7 +18,7 @@ ideal they are a lot better than before. I'm still working on modular organizati
 spaghetti as I feared it would. Still has a lot though. The update function is monstrous.
 
 An area in need of improvement is the way I handled the background sprite. I could not get pygame.transform() to do
-what I wanted with scaling, so I had to re-size the base sprite and just use it raw. The animation is definitely a work
+what I wanted with scaling, so I had to re-size the spritesheet manually and just use it that way. The animation is definitely a work
 in progress. They definitely need work, and should probably be moved to the built in sprite classes.
 
 """
