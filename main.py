@@ -15,7 +15,7 @@ with what I was comfortable with for this version.
 
 I re-wrote the game loop and organized the classes differently than in v0, and while they are still probably not
 ideal they are a lot better than before. I'm still working on modular organization but this one doesn't have as much
-spaghetti as I feared it would.
+spaghetti as I feared it would. Still has a lot though. The update function is monstrous.
 
 An area in need of improvement is the way I handled the background sprite. I could not get pygame.transform() to do
 what I wanted with scaling, so I had to re-size the base sprite and just use it raw. The animation is definitely a work
