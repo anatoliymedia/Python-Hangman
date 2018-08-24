@@ -1,26 +1,10 @@
 """
 21 AUG 2018
-Sam Gibson
 
 Graphical Hangman v1:
 
 A simple game of hangman, in a pygame instance. It has multiple difficulty levels, a small but easily expanded
 vocabulary, improved animations and sound over v0, and a fully clickable menu interface (where v0 was key-strokes only).
-
-There is no high score system yet, but there is a win streak counter. It will keep track of your win streak
-until you lose, at which point it is reset.
-
-Graphics and Sound are still very basic and there's definitely a better way to do the background sprite but I went
-with what I was comfortable with for this version.
-
-I re-wrote the game loop and organized the classes differently than in v0, and while they are still probably not
-ideal they are a lot better than before. I'm still working on modular organization but this one doesn't have as much
-spaghetti as I feared it would. Still has a lot though. The update function is monstrous.
-
-An area in need of improvement is the way I handled the background sprite. I could not get pygame.transform() to do
-what I wanted with scaling, so I had to re-size the spritesheet manually and just use it that way. The animation is definitely a work
-in progress. They definitely need work, and should probably be moved to the built in sprite classes.
-
 """
 
 import pygame
