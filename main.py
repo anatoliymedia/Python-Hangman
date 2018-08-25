@@ -264,14 +264,14 @@ class Hangman:
         self.display_word = ""      # the word which is displayed to the player
         self.word_dict = {}         # a dictionary of letters in the word, with asterisk values
         self.tried = []             # letters that have already been tried this turn
-        self.revealed_dict = {}     # dict gets each letter in word and has boolean value "HIDE" which hides the letter
+        self.revealed_dict = {}     # dict gets each letter in word and has string  "HIDE" which hides the letter and is checked later
         self.category = None        # the current category
         self.penalties = 0          # current number of penalties
         self.streaking = False      # whether the player is currently on a streak
-        self.total_streak = 0       # total number of words in streak so far
+        self.total_streak = 0       # total number of words in streak so far. Next version I want to save a persistent high score.
         self.score = 0              # score so far for this word (letters guessed correctly)
         self.req_score = 0          # score required to win
-        self.over = False           # If there is a game over state
+        self.over = False           # If there is a game over state, used to handle all the game over stuff if True.
 
         # Several surfaces for the main game display and their locations:
         # penalty surface
