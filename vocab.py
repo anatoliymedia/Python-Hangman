@@ -1,6 +1,4 @@
 """
-Sam Gibson
-23 AUG
 
 The vocab manager for the main.py file for Graphical Hangman v1
 
