@@ -6,7 +6,7 @@ GRAPHICAL HANGMAN v1
 
 UPDATE: I won't be updating this so if someone wants to have at it and make it their own they are more than welcome.
 It isn't set up for any kind of packaging at all and I assume that if someone wants to play it they'll install python and
-pygame and use these resources to run it themselves. I'm just not advanced enough to do that myself yet. 
+pygame and use these resources to run it themselves. I'm just not advanced enough to package a game myself yet. 
 
 This game is a simple Hangman game made with Python, the pygame library, and a few free tools for making art and sound.
 For the art I mostly used Piskel which is an easy way to make pixel art for sprites. For the sound I used a mixture
