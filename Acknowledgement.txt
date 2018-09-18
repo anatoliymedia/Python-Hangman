@@ -1,0 +1,26 @@
+I had been wracking my brain trying to remember which YouTuber's channel I watched that inspired me to do Hangman and while I 
+thought I had figured it out, it looks like the video has been removed or it wasn't the one I remembered. In any event
+I had watched a YouTube video shortly before making the original console version of this application and wanted to give props
+to the YouTube programming people in general for being a wealth of useful information. I am bad at finishing any series and I 
+don't think this little project is representative of anything they are trying to teach as far as my coding style goes (which
+is pretty messy) but here is a short list of some of the YouTube channels I had found helpful in making games with python
+as well as pygame. 
+
+I've advanced a lot since making Graphical Hangman and these channels are largely to thank for helping to show me
+concepts and different ways of approaching them. When self-learning it is important to take in a wide range of sources
+because you are missing out on the less appreciated benefits of a conventional education such as having good style drilled in
+to you.
+
+To some degree or another these channels were all helpful in understanding the concepts I used when writing
+this code. It is not representative of the good style that most of them try to preach but I did find it helpful to
+watch them approach issues and program and figure it'd be unfair not to give them some credit:
+
+Python Training by Dan Bader
+sentdex
+Cory Schaefer
+code.Pylet
+KidsCanCode (deceptively named: Adults can benefit from this and it's not dumbed down)
+The Complete Roguelike Tutorial by "The Terrible Programmer" (applicable to any pygame development)
+MIT OpenCourseWare (in small doses...)
+
+
