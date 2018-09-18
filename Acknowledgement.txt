@@ -23,4 +23,4 @@ KidsCanCode (deceptively named: Adults can benefit from this and it's not dumbed
 The Complete Roguelike Tutorial by "The Terrible Programmer" (applicable to any pygame development)
 MIT OpenCourseWare (in small doses...)
 
-
+Also: Sound done with bfxr and Bosca Ceoil, both easy and accessible freeware for making short sound effects or tunes.
