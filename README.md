@@ -15,3 +15,6 @@ of bfxr and Bosca Ceoil, both of which are free and easy to use.
 Notes on tinkering with my code: It's way overly complicated and someone willing to take the time and just refactor it
 would have a neat little something on their hands, although it might just be easier to make one from scratch. I simply
 did not use good coding practices in most of this code, but it works and that might be useful to someone. Enjoy!
+
+MANDATORY DISCLAIMER: This is just a game of hangman. It is not controversial. If anyone finds it controversial please let me 
+know and I will immediately take it down. It seemed like a cool first thing to code to completion with pygame.
