@@ -19,12 +19,12 @@ cat_instruments = ["tuba", "guitar", "bass", "harmonica", "violin", "cello", "pi
 cat_household = ["phone", "kitchen", "closet", "room", "curtains", "carpet", "attic", "basement", "garage", "driveway"]
 cat_history = ["medieval", "renaissance", "ancient", "prehistoric", "archaeology", "ruins"]
 cat_technology = ["phone", "circuit", "wire", "transistor", "gate", "miniaturization", "electromagnetic", "signal",
-                  "antenna", "display"]
+                  "antenna", "display", "youtube", "google"]
 cat_politics = ["democrat", "republican", "libertarian", "communism", "capitalism", "socialism", "fascism", "vote",
                 "coup", "election"]
 cat_fantasy = ["dragon", "princess", "sword", "magic", "dungeon", "goblin", "elf", "orc", "hobbit", "unicorn"]
 cat_gaming = ["role", "shooter", "strategy", "simulation", "sandbox", "jrpg", "tactical", "steam", "twitch", "indie"]
-cat_school = ["pencil", "paper", "textbook", "teacher", "lunch", "locker", "backpack", "grades", "finals", "graduation"]
+cat_school = ["pencil", "paper", "textbook", "teacher", "lunch", "locker", "backpack", "grades", "finals", "graduation", "middle", "high"]
 cat_internet = ["wifi", "broadband", "network", "gateway", "router", "provider", "neutrality", "piracy", "facebook",
                 "reddit"]
 cat_parties = ["drunk", "wasted", "dancing", "barfing", "social", "music", "guests", "surprise", "frat", "sorority"]
